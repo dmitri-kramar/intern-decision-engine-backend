@@ -1,17 +1,12 @@
 package ee.taltech.inbankbackend.endpoint;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Holds the response data of the REST endpoint.
  */
-@Getter
-@Setter
-@Component
-public class DecisionResponse {
-    private Integer loanAmount;
-    private Integer loanPeriod;
-    private String errorMessage;
-}
+public record DecisionResponse(
+        @JsonProperty("loanAmount") Integer loanAmount,
+        @JsonProperty("loanPeriod") Integer loanPeriod,
+        @JsonProperty("errorMessage") String errorMessage
+) {}

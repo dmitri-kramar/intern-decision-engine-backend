@@ -1,15 +1,12 @@
 package ee.taltech.inbankbackend.endpoint;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Holds the request data of the REST endpoint
  */
-@Getter
-@AllArgsConstructor
-public class DecisionRequest {
-    private String personalCode;
-    private Long loanAmount;
-    private int loanPeriod;
-}
+public record DecisionRequest(
+        @JsonProperty("personalCode") String personalCode,
+        @JsonProperty("loanAmount") Integer loanAmount,
+        @JsonProperty("loanPeriod") Integer loanPeriod
+) {}
