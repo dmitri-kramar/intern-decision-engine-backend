@@ -48,7 +48,7 @@ a singleton, introducing potential race conditions and violating stateless desig
 and now create response objects per request to ensure statelessness.
 
 ### 6. Use of class-level field for creditModifier
-The intern's code stored creditModifier as a class-level field, which introduced potential side effects and 
+The original code stored creditModifier as a class-level field, which introduced potential side effects and 
 threading issues. I refactored it into a method-local variable.
 
 ### 7. Manual try/catch blocks and Throwable exceptions
