@@ -1,85 +1,79 @@
-# InBank Backend Service
+# Review: TICKET-101 - Implement MVP scope of decision engine
 
-This service provides a REST API for calculating an approved loan amount and period for a customer.
-The loan amount is calculated based on the customer's credit modifier, which is determined by the last four
-digits of their ID code.
+## Summary
+This review validates the implementation provided in TICKET-101 and outlines what was done well and what areas 
+required improvement. The goal of the task was to implement a decision engine that determines the maximum loan amount 
+for a customer based on a credit scoring formula, with fallback logic in case the requested loan cannot be approved.
 
-## Technologies Used
+---
 
-- Java 17
-- Spring Boot
-- [estonian-personal-code-validator:1.6](https://github.com/vladislavgoltjajev/java-personal-code)
+## What Was Done Well
+- The project structure was organized clearly, with a separation of backend and frontend.
+- Frontend-backend communication worked as expected, and the UI was intuitive.
+- Spring for the most part was configured correctly using appropriate annotations.
+- The application could run end-to-end and returned loan decisions.
+- Encapsulation principles were followed by using appropriate access modifiers.
+- Custom exceptions were created with easy-to-understand names.
 
-## Requirements
+---
 
-- Java 17
-- Gradle
+## Issues Identified and Resolved
 
-## Installation
+### 1. Simplified loan calculation algorithm
+The original decision engine used a basic calculation: creditModifier * loanPeriod. This skipped the requirement to
+use the specified scoring formula: ((creditModifier / loanAmount) * loanPeriod) / 10. While this simplified logic
+worked well with the default credit score threshold of 0.1, it started producing incorrect results when the threshold
+was increased. The simplified approach may have been an attempt at optimization, but it overlooked the importance of
+scalability. Although the assignment does not explicitly mention the need to change the threshold, I decided to
+implement the full formula and extract the threshold into a constant. This way, it can be easily adjusted in the
+future if needed.
 
-To install and run the service, please follow these steps:
+### 2. Questionable segmentation logic for credit modifier
+The original implementation derived the customer segment from the last four digits of the personal code. While the 
+original logic may have been acceptable, I decided to adjust it so that the example personal codes from the assignment 
+would behave as described. In my implementation, the credit modifier is assigned based on the last digit of the 
+personal code, which ensures that the test cases match the expected segments.
 
-1. Clone the repository.
-2. Navigate to the root directory of the project.
-3. Run `gradle build` to build the application.
-4. Run `java -jar build/libs/inbank-backend-1.0.jar` to start the application
+### 3. Inconsistent maximum loan period
+The constant for the maximum loan period was incorrectly set to 60 in multiple places (constants, frontend slider, 
+and documentation). I updated all instances to reflect the correct value of 48 months.
 
-The default port is 8080.
+### 4. Issues in frontend logic
+The frontend logic overwrote backend-calculated values with user input. I corrected this logic to preserve the backend
+decision. As mentioned above, the frontend also used an incorrect max value (60 months) for the loan period slider.
 
-## Endpoints
+### 5. Improper use of DTO as a Spring bean
+In the original implementation, DecisionResponse was annotated with @Component and injected into the controller as
+a singleton, introducing potential race conditions and violating stateless design principles. I removed the annotation
+and now create response objects per request to ensure statelessness.
 
-The application exposes a single endpoint:
+### 6. Use of class-level field for creditModifier
+The intern's code stored creditModifier as a class-level field, which introduced potential side effects and 
+threading issues. I refactored it into a method-local variable.
 
-### POST /loan/decision
+### 7. Manual try/catch blocks and Throwable exceptions
+Error handling was implemented manually in the controller and service using try/catch blocks. Additionally, all 
+custom exceptions extended Throwable, which is not considered good practice. I updated them to extend RuntimeException, 
+removed the try/catch blocks, and delegated all exception handling to a centralized GlobalExceptionHandler class.
 
-The request body must contain the following fields:
+### 8. Redundant Decision class
+A separate Decision class was defined, but its structure was identical to DecisionResponse — even the comments were 
+the same. While I understand that in a real banking environment it might be important to follow a layered architecture, 
+I decided that in the context of this test assignment it was reasonable to simplify the design. I removed the Decision 
+class and used DecisionResponse directly instead.
 
-- personalCode: The customer's personal ID code.
-- loanAmount: The requested loan amount.
-- loanPeriod: The requested loan period.
+### 9. Potential risk when sending null values
+The original DecisionRequest used primitive type — int, which could lead to errors when a request was sent with null 
+value. I updated all fields in both DecisionRequest and DecisionResponse to use wrapper type Integer. Null checks are
+now performed in the service layer, and any thrown exceptions are handled by the GlobalExceptionHandler. I also 
+converted both DTOs into Java record classes.
 
-**Request example:**
+---
 
-```json
-{
-"personalCode": "50307172740",
-"loanAmount": "5000",
-"loanPeriod": "24"
-}
-```
-
-The response body contains the following fields:
-
-- loanAmount: The approved loan amount.
-- loanPeriod: The approved loan period.
-- errorMessage: An error message, if any.
-
-**Response example:**
-
-```json
-{
-"loanAmount": 2400,
-"loanPeriod": 24,
-"errorMessage": null
-}
-```
-
-## Error Handling
-
-The following error responses can be returned by the service:
-
-- `400 Bad Request` - in case of an invalid input
-    - `Invalid personal ID code!` - if the provided personal ID code is invalid
-    - `Invalid loan amount!` - if the requested loan amount is invalid
-    - `Invalid loan period!` - if the requested loan period is invalid
-- `404 Not Found` - in case no valid loans can be found
-    - `No valid loan found!` - if there is no valid loan found for the given ID code, loan amount, and loan period
-- `500 Internal Server Error` - in case the server encounters an unexpected error while processing the request
-    - `An unexpected error occurred` - if there is an unexpected error while processing the request
-
-## Architecture
-
-The service consists of two main classes:
-
-- DecisionEngine: A service class that provides a method for calculating an approved loan amount and period for a customer.
-- DecisionEngineController: A REST endpoint that handles requests for loan decisions.
+## Most Critical Issue
+It's not easy to name a single most critical issue, as both the loan calculation logic and the incorrect loan period 
+limit had notable impact. The simplified formula used in the original implementation worked under the default threshold 
+and may be acceptable within the assignment scope. However, it lacked flexibility and failed under different scoring 
+rules. At the same time, the incorrect MAXIMUM_LOAN_PERIOD value (60 instead of 48) clearly violated the specification 
+and affected both backend logic and frontend behavior. I’d be happy to receive feedback and learn what the 
+intended answer was!
